@@ -1,0 +1,224 @@
+<template>
+  <div class="page">
+    <text class="title">Counters</text>
+
+    <list class="list" bounces="true">
+      <list-item 
+        for="{{counters}}" 
+        class="item" 
+        type="item" 
+        @longpress="showDeleteCounterPrompt($idx)" 
+        @click="openDetail($idx)"
+      >
+        <text class="counterName">{{$item.name}}</text>
+        <text class="counterValue">{{$item.value}}</text>
+        <div class="divider"></div>
+      </list-item>
+    </list>
+
+    <input type="button" value="+" @click="addCounter" class="addBtn" />
+  </div>
+</template>
+
+<script>
+import storage from '@system.storage';
+import router from "@system.router";
+import prompt from '@system.prompt';
+import vibrator from '@system.vibrator';
+
+export default {
+  private: {
+    counters: [],
+    // Flag to suppress click event after long press
+    suppressClick: false
+  },
+
+  // Lifecycle method when the page is initialized
+  onInit() {
+    this.loadCounters();
+  },
+
+  // Lifecycle method when the page is shown again, e.g., after coming back from detail page
+  onShow() {
+    this.loadCounters();
+  },
+
+  // Load counters from storage and assign to the local variable
+  loadCounters() {
+    // Var to hold reference to 'this' context, because inside the storage callback 'this' may refer to a different context
+    const self = this;
+
+    storage.get({
+      key: 'counters',
+      // Success, fail, and complete callbacks for debugging 
+      success: function (data) {
+        try {
+          // Parse the data and assign to the local counters variable
+          self.counters = JSON.parse(data);
+          console.log('handling success: load counters', data);
+        } catch (e) {
+          // If parsing fails, initialize counters as an empty array
+          self.counters = [];
+          console.log('Error parsing counters', e);
+        }
+      },
+      fail: function (data, code) {
+        console.log(`handling fail, code = ${code}`);
+      },
+      complete: function () {
+        console.log('handling complete: load counters');
+      }
+    });
+  },
+
+  // Save the current counters array as JSON to storage
+  saveCountersToStorage() {
+    // Convert counters array to JSON string
+    const jsonCounters = JSON.stringify(this.counters);
+
+    storage.set({
+      key: 'counters',
+      value: jsonCounters
+    });
+  },
+
+  // Add a new counter with default name and value and save to storage
+  addCounter() {
+    // Vibrate on button press
+    vibrator.vibrate({ mode: 'short' });
+
+    // Find used numbers in existing counter names
+    const usedNumbers = this.counters
+      .map(c => parseInt(c.name.replace('Counter ', '')))
+      .filter(n => !isNaN(n));
+
+    // Find the smallest unused number for the new counter name  
+    let n = 1;
+    while (usedNumbers.includes(n)) {
+      n++;
+    }
+
+    // Create new counter object
+    const newCounter = {
+      name: `Counter ${n}`,
+      value: 0
+    };
+
+    this.counters.push(newCounter);
+    this.saveCountersToStorage();
+  },
+
+  // Show a prompt to confirm deletion of a counter
+  showDeleteCounterPrompt(idx) {
+    // Set suppressClick flag to true to ignore the subsequent click event
+    this.suppressClick = true;
+
+    // Vibrate on long press
+    vibrator.vibrate({ mode: 'short' });
+
+    prompt.showDialog({
+      message: 'Delete counter?',
+      buttons: [
+        { text: 'Delete', color: '#ff3b30' },
+        { text: 'Cancel' }
+      ],
+      success: (res) => {
+        // Reset suppressClick flag on cancel
+        this.suppressClick = false;
+        // If 'Delete' button is pressed
+        if (res.index === 0) {
+          this.deleteCounter(idx);
+        }
+      },
+      cancel: () => {
+        // Reset suppressClick flag on cancel
+        this.suppressClick = false;
+      }
+    });
+  },
+
+  // Delete a counter at the specified index and save changes to storage
+  deleteCounter(idx) {
+    this.counters.splice(idx, 1);
+    this.saveCountersToStorage();
+  },
+
+ // Open the detail page for the counter at the specified index
+  openDetail(idx) {
+    // suppress click if it was a long press
+    if (this.suppressClick) return;
+
+    // Vibrate on button press
+    vibrator.vibrate({ mode: 'short' });
+
+    router.push({
+      uri: '/pages/detail',
+      // Assign the new indexCounter parameter
+      params: { indexCounter: idx }
+    });
+  }
+};
+</script>
+
+<style>
+.page {
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.divider {
+  height: 5px;
+  background-color: #004D40;
+  width: 90%;
+  margin-top: 5px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: bold;
+  color: #ffffff;
+  margin: 10px 0;
+  text-align: center;
+}
+
+.counterName {
+  font-size: 24px;
+  color: #000000;
+  text-align: center;
+}
+
+.counterValue {
+  font-size: 40px;
+  font-weight: bold;
+  color: #000000;
+  text-align: center;
+}
+
+.list {
+  width: 90%;
+  height: 65%;
+  border-radius: 48px;
+  margin: 10px auto;
+  background-color: #80CBC4;
+}
+
+.item {
+  height: 120px;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.addBtn {
+  width: 30%;
+  height: 60px;
+  margin: 10px auto;
+  background-color: #ffffff;
+  color: #000000;
+  border-radius: 64px;
+  text-align: center;
+  font-size: 60px;
+}
+</style>

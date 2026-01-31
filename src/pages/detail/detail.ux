@@ -1,0 +1,147 @@
+<template>
+  <div class="page">
+    <text class="title">{{ counter.name }}</text>
+
+    <div class="buttons">
+      <input
+        type="button"
+        value="+"
+        @click="increment"
+        class="btn"
+      />
+    </div>
+
+    <text class="value">{{ counter.value }}</text>
+
+    <div class="buttons">
+      <input
+        type="button"
+        value="-"
+        @click="decrement"
+        class="btn"
+      />
+    </div>
+  </div>
+</template>
+
+<script>
+import storage from '@system.storage';
+import vibrator from '@system.vibrator';
+
+export default {
+  private: {
+    // Default counter object
+    counter: { name: 'Counter', value: 0 },
+    counters: [],
+  },
+
+  // Lifecycle method when the page is initialized
+  onInit() {
+    this.loadCounters();
+  },
+
+  // Load counters and get counter by index 
+  // The indexCounter parameter is passed via router
+  loadCounters() {
+    // Var to hold reference to 'this' context, because inside the storage callback 'this' may refer to a different context
+    const self = this;
+
+    storage.get({
+      key: 'counters',
+      success: function (data) {
+        try {
+          // Parse the data and assign to the local counters variable
+          self.counters = JSON.parse(data);
+          // Get the counter from the counters array by index
+          self.counter = self.counters[self.indexCounter];
+          console.log('handling success', data);
+        } catch (e) {
+          console.log('Error parsing counters data:', e);
+        }
+      },
+      fail: function (data, code) {
+        console.log(`handling fail, code = ${code}`);
+      }
+    });
+  },
+
+  // Save the current counters array to storage
+  saveCountersToStorage() {
+    // Convert counters array to JSON string
+    const jsonCounters = JSON.stringify(this.counters);
+
+    storage.set({
+      key: 'counters',
+      value: jsonCounters,
+    });
+  },
+
+  // Update the current counter in the counters array and save to storage
+  updateCounter() {
+    this.counters[this.indexCounter].value = this.counter.value;
+    this.saveCountersToStorage();
+  },
+
+  // Increment the counter value
+  increment() {
+    // Vibrate on button press
+    vibrator.vibrate({ mode: 'short' });
+
+    this.counter.value++;
+    this.updateCounter();
+  },
+
+  // Decrement the counter value
+  decrement() {
+    // Ensure the counter value does not go below zero
+    if (this.counter.value > 0) {
+      // Vibrate on button press
+      vibrator.vibrate({ mode: 'short' });
+
+      this.counter.value--;
+      this.updateCounter();
+    }
+  },
+};
+</script>
+
+<style>
+.page {
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #ffffff;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.value {
+  font-size: 100px;
+  font-weight: bold;
+  color: #ffffff;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.buttons {
+  flex-direction: row;
+  justify-content: space-around;
+  margin-top: 10px;
+}
+
+.btn {
+  width: 90%;
+  height: 100px;
+  background-color: #26A69A;
+  color: #fff;
+  font-size: 140px;
+  border-radius: 48px;
+  text-align: center;
+}
+</style>
